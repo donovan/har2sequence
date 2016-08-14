@@ -1,0 +1,243 @@
+#!/usr/bin/perl
+##############################################################################
+#
+# Script:   har2sequence
+#
+# Author:   Donovan Jones <donovan@catalyst.net.nz>
+#
+# Description:
+#
+# TODO_DESCRIPTION
+#
+
+use 5.010;
+use strict;
+use warnings;
+
+use Pod::Usage;
+use Getopt::Long qw(GetOptions);
+
+use File::Slurp;
+use Data::Dump qw(dump);
+use JSON::XS;
+use Text::SimpleTable;
+use List::Util qw(max);
+use LWP::UserAgent;
+
+my (%opt);
+
+if (!GetOptions(\%opt, 'help|?', 'output|o=s', 'style|s=s', 'list-styles|l')) {
+    pod2usage(-exitval => 1,  -verbose => 0);
+}
+
+pod2usage(-exitstatus => 0, -verbose => 1) if $opt{help};
+
+if (defined $opt{output}) {
+    unless (grep { $opt{output} eq $_ } qw( sequence table dump png svg pdf ) ) {
+        pod2usage(-exitstatus => 0, -verbose => 1);
+    }
+}
+else {
+    $opt{type} = 'sequence';
+}
+
+my @wsd_styles =qw(
+    default
+    earth
+    magazine
+    modern-blue
+    mscgen
+    napkin
+    omegapple
+    patent
+    qsd
+    rose
+    roundgreen
+);
+
+if (defined $opt{style}) {
+    unless (grep { $opt{style} eq $_ } @wsd_styles ) {
+        pod2usage(-exitstatus => 0, -verbose => 1);
+    }
+}
+else {
+    $opt{style} = 'default';
+}
+
+if (defined $opt{'list-styles'}) {
+    print "Valid styles:\n\n";
+    foreach my $style (@wsd_styles) {
+        print "$style\n";
+    }
+    exit;
+}
+
+my $file = shift;
+
+# TODO: add a flag to change this
+my $client = 'Browser';
+
+my @mime_ignore = qw(
+    application/octet-stream
+    application/x-javascript
+    image/jpeg
+    image/png
+    image/x-icon
+    text/css
+    x-unknown
+);
+
+my $har  = read_file($file) ;
+my $data = decode_json $har;
+
+my $report = [];
+
+foreach my $entry (@{ $data->{log}{entries} }) {
+    my $truncated_request_url = $entry->{request}{url};
+    $truncated_request_url =~ s{\? .* \z }{?<get_paramters>}xms;
+    my $report_line = {
+        location              => '',
+        request_method        => $entry->{request}{method}             // '',
+        request_url           => $entry->{request}{url}                // '',
+        truncated_request_url => $truncated_request_url                // '',
+        response_status       => $entry->{response}{status}            // '',
+        response_status_text  => $entry->{response}{statusText}        // '',
+        response_redirect_url => $entry->{response}{redirectURL}       // '',
+        request_mime_type     => $entry->{response}{content}{mimeType} // '',
+        server_ip_address     => $entry->{serverIPAddress}             // '',
+    };
+
+    foreach my $header (@{ $entry->{response}{headers} }) {
+        if ($header->{name} eq 'Location') {
+            $report_line->{location} = $header->{value};
+        }
+    }
+    unless ( grep { $report_line->{request_mime_type} eq $_ } @mime_ignore ) {
+        push @{ $report }, $report_line;
+    }
+}
+
+if ($opt{output} eq 'sequence') {
+    my $sequence_text = generate_sequence($report);
+    print $sequence_text;
+}
+elsif ( grep { $opt{output} eq $_ } qw( png svg pdf ) ) {
+    my $sequence_text = generate_sequence($report);
+    my $wsd_content   = wsd_post($opt{output}, $opt{style}, $sequence_text);
+    print "got '$wsd_content' from wsd\n";
+}
+elsif ($opt{output} eq 'table') {
+    output_table($report);
+}
+elsif ($opt{output} eq 'dump') {
+    print dump($report);
+}
+
+sub wsd_post {
+    my $wsd_format  = shift;
+    my $wsd_style   = shift;
+    my $wsd_message = shift;
+
+    my $wsd_url  = 'http://www.websequencediagrams.com/index.php';
+    my $ua       = LWP::UserAgent->new();
+    my $response = $ua->post( $wsd_url, {
+        'style'   => $wsd_style,
+        'message' => $wsd_message,
+        'format'  => $wsd_format,
+    } );
+    my $content  = $response->decoded_content();
+
+    return $content;
+}
+
+sub output_table {
+    my $report = shift;
+
+    my @keys = qw(
+        request_method
+        truncated_request_url
+        server_ip_address
+        response_status
+        response_status_text
+        location
+        request_mime_type
+    );
+
+    my @headings;
+
+    foreach my $key (@keys) {
+        my $max_value_length = max map{ length($_->{$key}) } @{ $report };
+        #$max_value_length = 60 if $key eq 'request_url';
+        push @headings, [$max_value_length, $key];
+    }
+
+    my $t1 = Text::SimpleTable->new(@headings);
+    foreach my $connection (@{ $report }) {
+        my @row;
+        foreach my $key (@keys) {
+            push @row, $connection->{$key};
+        }
+        $t1->row(@row);
+    }
+    print $t1->draw;
+}
+
+sub generate_sequence {
+    my $report = shift;
+
+    my $sequence_txt = '';
+
+    foreach my $connection (@{ $report }) {
+        $sequence_txt .= $client
+                      . '->'
+                      . $connection->{server_ip_address}
+                      . ': '
+                      . $connection->{request_method}
+                      . ' '
+                      . $connection->{truncated_request_url}
+                      . "\n";
+        $sequence_txt .= $connection->{server_ip_address}
+                      . '-->'
+                      . $client
+                      . ': '
+                      . $connection->{response_status}
+                      . "\n";
+    }
+
+    return $sequence_txt;
+}
+
+exit 0;
+
+__END__
+
+=head1 NAME
+
+har2sequence - TODO_SHORT_DESCRIPTION
+
+=head1 SYNOPSIS
+
+  har2sequence [options] <HAR file>
+
+  Options:
+
+   --help        detailed help message
+   --output      output format, supports txt (default) table dump png svg or pdf
+   --style       websequencediagrams styles, use --list-styles for a listing
+   --list-styles list valid styles for websequencediagrams
+
+=head1 DESCRIPTION
+
+TODO_DESCRIPTION
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<--help>
+
+Display this documentation.
+
+=back
+
+=cut
