@@ -19,7 +19,7 @@ use Getopt::Long qw(GetOptions);
 
 use File::Slurp;
 use Data::Dump qw(dump);
-use JSON::XS;
+use JSON::PP;
 use Text::SimpleTable;
 use List::Util qw(max);
 use LWP::UserAgent;
@@ -77,14 +77,18 @@ my $file = shift;
 # TODO: add a flag to change this
 my $client = 'Browser';
 
+# TODO: change this to mime allow (whitelist vs blacklist)
 my @mime_ignore = qw(
+    application/javascript
     application/octet-stream
     application/x-javascript
+    image/gif
     image/jpeg
     image/png
+    image/svg+xml
     image/x-icon
     text/css
-    x-unknown
+    text/javascript
 );
 
 my $har  = read_file($file) ;
@@ -92,9 +96,15 @@ my $data = decode_json $har;
 
 my $report = [];
 
-foreach my $entry (@{ $data->{log}{entries} }) {
-    my $truncated_request_url = $entry->{request}{url};
-    $truncated_request_url =~ s{\? .* \z }{?<get_paramters>}xms;
+foreach my $entry (sort {$a->{startedDateTime} cmp $b->{startedDateTime}} @{ $data->{log}{entries} }) {
+    my $truncated_request_url  = $entry->{request}{url};
+    my $truncated_response_url = $entry->{response}{redirectURL};
+    # TODO allow overriding of truncation
+    # TODO get param function
+    # TODO support dumping get parameters
+    $truncated_request_url  =~ s{\? .* \z }{?<get_paramters>}xms;
+    $truncated_response_url =~ s{\? .* \z }{?<get_paramters>}xms;
+    # TODO add flag to allow us to skip comms with a particular server
     my $report_line = {
         location              => '',
         request_method        => $entry->{request}{method}             // '',
@@ -102,14 +112,16 @@ foreach my $entry (@{ $data->{log}{entries} }) {
         truncated_request_url => $truncated_request_url                // '',
         response_status       => $entry->{response}{status}            // '',
         response_status_text  => $entry->{response}{statusText}        // '',
-        response_redirect_url => $entry->{response}{redirectURL}       // '',
+        response_redirect_url => $truncated_response_url               // '',
         request_mime_type     => $entry->{response}{content}{mimeType} // '',
         server_ip_address     => $entry->{serverIPAddress}             // '',
     };
 
     foreach my $header (@{ $entry->{response}{headers} }) {
         if ($header->{name} eq 'Location') {
-            $report_line->{location} = $header->{value};
+            my $location = $header->{value};
+            $location =~ s{\? .* \z }{?<get_paramters>}xms;
+            $report_line->{location} = $location;
         }
     }
     unless ( grep { $report_line->{request_mime_type} eq $_ } @mime_ignore ) {
@@ -123,8 +135,9 @@ if ($opt{output} eq 'sequence') {
 }
 elsif ( grep { $opt{output} eq $_ } qw( png svg pdf ) ) {
     my $sequence_text = generate_sequence($report);
-    my $wsd_content   = wsd_post($opt{output}, $opt{style}, $sequence_text);
-    print "got '$wsd_content' from wsd\n";
+    my $wsd_result    = wsd_post($opt{output}, $opt{style}, $sequence_text);
+    print $wsd_result;
+
 }
 elsif ($opt{output} eq 'table') {
     output_table($report);
@@ -138,16 +151,28 @@ sub wsd_post {
     my $wsd_style   = shift;
     my $wsd_message = shift;
 
-    my $wsd_url  = 'http://www.websequencediagrams.com/index.php';
-    my $ua       = LWP::UserAgent->new();
-    my $response = $ua->post( $wsd_url, {
+    # add useragent identifying har2sequence as the UA
+    my $wsd_url   = 'http://www.websequencediagrams.com/index.php';
+    my $ua        = LWP::UserAgent->new();
+    my $response  = $ua->post( $wsd_url, {
         'style'   => $wsd_style,
         'message' => $wsd_message,
         'format'  => $wsd_format,
     } );
-    my $content  = $response->decoded_content();
+    my $content   = $response->decoded_content();
+    #{img: "?img=mscGSIfnU", page: 0, numPages: 1, errors: []}'
+    # INVALID JSON!, keys not quoted
+    my $coder = JSON::PP->new->ascii->allow_barekey;
+    my $wsd_data  = $coder->decode($content);
+    # TODO: better name for file (use source har filename)?
+    # TODO: add flag for filename?
+    # TODO: report any errors to user
+    my $file_url  = 'http://www.websequencediagrams.com/' . $wsd_data->{img};
+    my $file_name = (split/=/, $wsd_data->{img})[1] . '.' . $wsd_format;
 
-    return $content;
+    $ua->mirror( $file_url, $file_name );
+
+    return "retrieved $file_name from $file_url";
 }
 
 sub output_table {
