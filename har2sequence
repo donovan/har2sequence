@@ -164,9 +164,9 @@ sub wsd_post {
     my $wsd_style   = shift;
     my $wsd_message = shift;
 
-    # add useragent identifying har2sequence as the UA
     my $wsd_url   = 'http://www.websequencediagrams.com/index.php';
     my $ua        = LWP::UserAgent->new();
+    $ua->agent("har2sequence/0.1 " . $ua->agent);
     my $response  = $ua->post( $wsd_url, {
         'style'   => $wsd_style,
         'message' => $wsd_message,
