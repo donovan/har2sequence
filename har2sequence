@@ -149,7 +149,7 @@ if ($opt{output} eq 'sequence') {
 elsif ( grep { $opt{output} eq $_ } qw( png svg pdf ) ) {
     my $sequence_text = generate_sequence($report);
     my $wsd_result    = wsd_post($opt{output}, $opt{style}, $sequence_text);
-    print $wsd_result;
+    print $wsd_result . "\n";
 
 }
 elsif ($opt{output} eq 'table') {
@@ -179,7 +179,8 @@ sub wsd_post {
     my $wsd_data  = $coder->decode($content);
     # TODO: report any errors to user
     my $file_url  = 'http://www.websequencediagrams.com/' . $wsd_data->{img};
-    my $file_name = $opt{outfile} . '.' . $wsd_format;
+    my $file_name = $opt{outfile} . '.' . $wsd_style . '.' . $wsd_format;
+    $file_name = $opt{outfile} . '.' . $wsd_format if $wsd_style eq 'default';
 
     $ua->mirror( $file_url, $file_name );
 
@@ -258,7 +259,8 @@ har2sequence - TODO_SHORT_DESCRIPTION
   Options:
 
    --help        detailed help message
-   --output      output format, supports txt (default) table dump png svg or pdf
+   --output      output format, supports txt (default), table, dump, png, svg or pdf
+   --outfile     override the output filename
    --style       websequencediagrams styles, use --list-styles for a listing
    --list-styles list valid styles for websequencediagrams
 
