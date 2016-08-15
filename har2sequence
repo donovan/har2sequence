@@ -38,7 +38,7 @@ if (defined $opt{output}) {
     }
 }
 else {
-    $opt{type} = 'sequence';
+    $opt{output} = 'sequence';
 }
 
 my @wsd_styles =qw(
