@@ -26,7 +26,14 @@ use LWP::UserAgent;
 
 my (%opt);
 
-if (!GetOptions(\%opt, 'help|?', 'output|o=s', 'style|s=s', 'list-styles|l')) {
+if (!GetOptions(
+    \%opt,
+    'help|?',
+    'output|o=s',
+    'style|s=s',
+    'outfile|f=s',
+    'list-styles|l',
+)) {
     pod2usage(-exitval => 1,  -verbose => 0);
 }
 
@@ -73,6 +80,12 @@ if (defined $opt{'list-styles'}) {
 }
 
 my $file = shift;
+
+unless (defined $opt{outfile}) {
+    my @file_parts = split/\./, $file;
+    pop @file_parts;
+    $opt{outfile} = join'.', @file_parts;
+}
 
 # TODO: add a flag to change this
 my $client = 'Browser';
@@ -164,11 +177,9 @@ sub wsd_post {
     # INVALID JSON!, keys not quoted
     my $coder = JSON::PP->new->ascii->allow_barekey;
     my $wsd_data  = $coder->decode($content);
-    # TODO: better name for file (use source har filename)?
-    # TODO: add flag for filename?
     # TODO: report any errors to user
     my $file_url  = 'http://www.websequencediagrams.com/' . $wsd_data->{img};
-    my $file_name = (split/=/, $wsd_data->{img})[1] . '.' . $wsd_format;
+    my $file_name = $opt{outfile} . '.' . $wsd_format;
 
     $ua->mirror( $file_url, $file_name );
 
