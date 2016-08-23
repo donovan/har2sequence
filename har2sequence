@@ -7,7 +7,7 @@
 #
 # Description:
 #
-# TODO_DESCRIPTION
+# Convert HTTP Archive format (HAR) to websequencediagrams compatible output
 #
 
 use 5.010;
@@ -250,7 +250,7 @@ __END__
 
 =head1 NAME
 
-har2sequence - TODO_SHORT_DESCRIPTION
+har2sequence - Convert HTTP Archive format (HAR) to websequencediagrams compatible output
 
 =head1 SYNOPSIS
 
@@ -259,9 +259,9 @@ har2sequence - TODO_SHORT_DESCRIPTION
   Options:
 
    --help        detailed help message
-   --output      output format, supports txt (default), table, dump, png, svg or pdf
+   --output      specify output format
    --outfile     override the output filename
-   --style       websequencediagrams styles, use --list-styles for a listing
+   --style       websequencediagrams style
    --list-styles list valid styles for websequencediagrams
 
 =head1 DESCRIPTION
@@ -275,6 +275,27 @@ TODO_DESCRIPTION
 =item B<--help>
 
 Display this documentation.
+
+=item B<--output>
+
+Specify the output format. Valid formats are txt (default), table, dump, png,
+svg and pdf.
+
+=item B<--outfile>
+
+Override the output filename. This option is only valid for the png, svg and
+pdf outputs that are produced via the websequencediagrams.com API.
+
+=item B<--style>
+
+Specify the websequencediagrams style, use --list-styles for a listing of valid
+styles. This option is only valid for the png, svg and pdf outputs that are
+produced via the websequencediagrams.com API.
+
+=item B<--list-styles>
+
+List valid styles for websequencediagrams. These styles are only valid for the
+png, svg and pdf outputs that are produced via the websequencediagrams.com API.
 
 =back
 
