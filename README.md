@@ -25,7 +25,7 @@ to show the interactions between a web browser and a one or more web servers.
 The png, svg and pdf outputs are generated via the websequencediagrams.com API.
 This API returns invalid JSON with unquoted keys, in order to deal with this we
 are using the allow_barekey method from the JSON::PP perl module. When
-interacting with this service the script prsents the following useragent:
+interacting with this service the script presents the following useragent:
 `har2sequence/0.1`.
 
 # Installation
@@ -33,7 +33,7 @@ interacting with this service the script prsents the following useragent:
 This script makes use of a number of perl modules. You can install these on a
 Debian based system using the following command:
 
-    $ sudo apt-get install libfile-slurp-perl libdata-dump-perl  libjson-pp-perl libtext-simpletable-perl libdata-dump-perl
+    $ sudo apt-get install libfile-slurp-perl libdata-dump-perl libjson-pp-perl libtext-simpletable-perl libdata-dump-perl
     $ git clone https://github.com/donovan/har2sequence.git
     $ cd har2sequence
 
