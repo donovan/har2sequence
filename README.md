@@ -68,9 +68,10 @@ This is the default output.
 
 Outputs a sequence diagram defined as txt as used by tools like
 [websequencediagrams](https://www.websequencediagrams.com/) and
-[js-sequence-diagrams](https://bramp.github.io/js-sequence-diagrams/). This
-format is not properly specified anywhere, As far as I know it was created by
-websequencediagrams, the best definition I know of is
+[js-sequence-diagrams](https://bramp.github.io/js-sequence-diagrams/).
+
+As far as I know this format is not properly specified anywhere and was created
+by websequencediagrams. The best definition I know of is
 [here](https://www.websequencediagrams.com/examples.html).
 
 ## Table
