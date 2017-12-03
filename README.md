@@ -1,6 +1,10 @@
 # har2sequence
 
-Convert HTTP Archive format (HAR) to websequencediagrams compatible output.
+Convert [HTTP Archive
+format](https://dvcs.w3.org/hg/webperf/raw-file/tip/specs/HAR/Overview.html)
+(HAR) to [websequencediagrams](https://www.websequencediagrams.com/) compatible
+output. Supports automatic fetching sequence diagrams from websequencediagrams
+via an API call.
 
 # HAR files
 
@@ -33,7 +37,8 @@ interacting with this service the script presents the following useragent:
 This script makes use of a number of perl modules. You can install these on a
 Debian based system using the following command:
 
-    $ sudo apt-get install libfile-slurp-perl libdata-dump-perl libjson-pp-perl libtext-simpletable-perl libdata-dump-perl
+    $ sudo apt-get install libfile-slurp-perl libdata-dump-perl \
+    libjson-pp-perl libtext-simpletable-perl libdata-dump-perl
     $ git clone https://github.com/donovan/har2sequence.git
     $ cd har2sequence
 
@@ -51,19 +56,54 @@ Save a har file using an appropriate tool (eg chrome developer tools).
         --help        detailed help message
         --output      output format, supports txt (default), table, dump, png, svg or pdf
         --outfile     override the output filename
+        --host        use Host header instead of Server IP
         --style       websequencediagrams styles, use --list-styles for a listing
         --list-styles list valid styles for websequencediagrams
 
 # Output formats
 
 ## TXT
+
+This is the default output.
+
+Outputs a sequence diagram defined as txt as used by tools like
+[websequencediagrams](https://www.websequencediagrams.com/) and
+[js-sequence-diagrams](https://bramp.github.io/js-sequence-diagrams/). This
+format is not properly specified anywhere, As far as I know it was created by
+websequencediagrams, the best definition I know of is
+[here](https://www.websequencediagrams.com/examples.html).
+
 ## Table
+
+Text table output.
+
 ## Dump
+
+Dump perl data structure as output.
+
 ## PNG
+
+Submit txt to websequencediagrams via API and save the returned png.
+
 ## SVG
+
+Submit txt to websequencediagrams via API and save the returned svg.
+
 ## PDF
 
+Submit txt to websequencediagrams via API and save the returned pdf.
+
 # Examples
+
+Parse a har file and output websequencediagrams txt format:
+
+    $ ./har2sequence example.har
+
+Retrieve a png sequence diagram that uses the napkin style from
+websequencediagrams. Make use of hosts headers for server names.
+
+    $ ./har2sequence --host --output png --style napkin example.har
+    retrieved example.png from http://www.websequencediagrams.com/?img=example123
 
 # Links
 
