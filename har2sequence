@@ -48,7 +48,7 @@ else {
     $opt{output} = 'sequence';
 }
 
-my @wsd_styles =qw(
+my @wsd_styles = qw(
     default
     earth
     magazine
