@@ -31,6 +31,7 @@ if (!GetOptions(
     'help|?',
     'output|o=s',
     'style|s=s',
+    'host|h',
     'outfile|f=s',
     'list-styles|l',
 )) {
@@ -109,37 +110,49 @@ my $data = decode_json $har;
 
 my $report = [];
 
-foreach my $entry (sort {$a->{startedDateTime} cmp $b->{startedDateTime}} @{ $data->{log}{entries} }) {
-    my $truncated_request_url  = $entry->{request}{url};
-    my $truncated_response_url = $entry->{response}{redirectURL};
-    # TODO allow overriding of truncation
-    # TODO get param function
-    # TODO support dumping get parameters
-    $truncated_request_url  =~ s{\? .* \z }{?<get_paramters>}xms;
-    $truncated_response_url =~ s{\? .* \z }{?<get_paramters>}xms;
-    # TODO add flag to allow us to skip comms with a particular server
-    my $report_line = {
-        location              => '',
-        request_method        => $entry->{request}{method}             // '',
-        request_url           => $entry->{request}{url}                // '',
-        truncated_request_url => $truncated_request_url                // '',
-        response_status       => $entry->{response}{status}            // '',
-        response_status_text  => $entry->{response}{statusText}        // '',
-        response_redirect_url => $truncated_response_url               // '',
-        request_mime_type     => $entry->{response}{content}{mimeType} // '',
-        server_ip_address     => $entry->{serverIPAddress}             // '',
-    };
+ SKIPMIME: foreach my $entry (sort {$a->{startedDateTime} cmp $b->{startedDateTime}} @{ $data->{log}{entries} }) {
+     # We only extract the information if the MIME type is acceptable
+     next SKIPMIME if ( grep ($entry->{response}{content}{mimeType} eq $_, @mime_ignore) );
+     
+     my $truncated_request_url  = $entry->{request}{url};
+     my $truncated_response_url = $entry->{response}{redirectURL};
+     # Extract Host header
+     my $host  = $entry->{request}{url};
+     $host =~ s{https?:\/\/([^\/]+).*}{$1};
+     
+     # If we put the Host information in the participant, we can remove that part from request URL
+     if (defined $opt{host}) {
+	 $truncated_request_url =~ s{https?:\/\/[^\/]+(.*)}{$1};
+     }
+     
+     # TODO allow overriding of truncation
+     # TODO get param function
+     # TODO support dumping get parameters
+     $truncated_request_url  =~ s{\? .* \z }{?<get_parameters>}xms;
+     $truncated_response_url =~ s{\? .* \z }{?<get_parameters>}xms;
+     # TODO add flag to allow us to skip comms with a particular server
+     my $report_line = {
+	 location              => '',
+	 host                  => $host,
+	 request_method        => $entry->{request}{method}             // '',
+	 request_url           => $entry->{request}{url}                // '',
+	 truncated_request_url => $truncated_request_url                // '',
+	 response_status       => $entry->{response}{status}            // '',
+	 response_status_text  => $entry->{response}{statusText}        // '',
+	 response_redirect_url => $truncated_response_url               // '',
+	 request_mime_type     => $entry->{response}{content}{mimeType} // '',
+	 server_ip_address     => $entry->{serverIPAddress}             // '',
+     };
+     
+     foreach my $header (@{ $entry->{response}{headers} }) {
+	 if ($header->{name} eq 'Location') {
+	     my $location = $header->{value};
+	     $location =~ s{\? .* \z }{?<get_parameters>}xms;
+	     $report_line->{location} = $location;
+	 }
+     }
 
-    foreach my $header (@{ $entry->{response}{headers} }) {
-        if ($header->{name} eq 'Location') {
-            my $location = $header->{value};
-            $location =~ s{\? .* \z }{?<get_paramters>}xms;
-            $report_line->{location} = $location;
-        }
-    }
-    unless ( grep { $report_line->{request_mime_type} eq $_ } @mime_ignore ) {
-        push @{ $report }, $report_line;
-    }
+     push @{ $report }, $report_line;
 }
 
 if ($opt{output} eq 'sequence') {
@@ -193,6 +206,7 @@ sub output_table {
     my @keys = qw(
         request_method
         truncated_request_url
+	host
         server_ip_address
         response_status
         response_status_text
@@ -225,15 +239,25 @@ sub generate_sequence {
     my $sequence_txt = '';
 
     foreach my $connection (@{ $report }) {
+	
+	# Host Header instead of IP
+	my $participant = '';
+	if (defined $opt{host}) {
+	    $participant = $connection->{host};
+	}
+	else {
+	    $participant = $connection->{server_ip_address};
+	}
+	
         $sequence_txt .= $client
                       . '->'
-                      . $connection->{server_ip_address}
+                      . $participant
                       . ': '
                       . $connection->{request_method}
                       . ' '
                       . $connection->{truncated_request_url}
                       . "\n";
-        $sequence_txt .= $connection->{server_ip_address}
+        $sequence_txt .= $participant
                       . '-->'
                       . $client
                       . ': '
@@ -262,6 +286,7 @@ har2sequence - Convert HTTP Archive format (HAR) to websequencediagrams compatib
    --output      specify output format
    --outfile     override the output filename
    --style       websequencediagrams style
+   --host        use Host header instead of Server IP
    --list-styles list valid styles for websequencediagrams
 
 =head1 DESCRIPTION
@@ -291,6 +316,11 @@ pdf outputs that are produced via the websequencediagrams.com API.
 Specify the websequencediagrams style, use --list-styles for a listing of valid
 styles. This option is only valid for the png, svg and pdf outputs that are
 produced via the websequencediagrams.com API.
+
+=item B<--host>
+
+Use the Host header (request) as the name of each participant instead of using the
+target IP address.
 
 =item B<--list-styles>
 
