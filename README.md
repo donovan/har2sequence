@@ -108,13 +108,22 @@ websequencediagrams. Make use of hosts headers for server names.
 
 # Links
 
+## HAR
+
 * https://dvcs.w3.org/hg/webperf/raw-file/tip/specs/HAR/Overview.html
 * http://www.softwareishard.com/blog/har-adopters/
 * https://en.wikipedia.org/wiki/.har
 * https://www.igvita.com/2012/08/28/web-performance-power-tool-http-archive-har/
 * http://www.softwareishard.com/blog/har-12-spec/
+* https://metacpan.org/pod/Archive::Har
+
+## Txt formats for UML and sequence diagrams
+
 * https://bramp.github.io/js-sequence-diagrams/
 * https://www.websequencediagrams.com/
 * https://en.wikipedia.org/wiki/Sequence_diagram
-* https://metacpan.org/pod/Archive::Har
 * https://www.websequencediagrams.com/embedding.html
+* https://modeling-languages.com/uml-tools/#textual
+* https://stackoverflow.com/questions/194754/rendering-uml-diagrams-from-text-files
+* http://plantuml.com/
+* https://www.planttext.com/
